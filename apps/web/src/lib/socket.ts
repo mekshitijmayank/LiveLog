@@ -11,10 +11,11 @@ let connectedAs: string | null = null;
  * One shared connection per tab. The auth callback runs on every (re)connect,
  * so the server always sees the freshest access token.
  */
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || undefined;
 export function getSocket(): AppSocket {
   if (socket) return socket;
   connectedAs = authStore.get().user?.id ?? null;
-  socket = io({
+  socket = io(SOCKET_URL,{
     path: SOCKET_PATH,
     transports: ['websocket', 'polling'],
     reconnectionDelay: 500,
