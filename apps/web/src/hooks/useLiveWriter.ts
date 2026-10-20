@@ -65,8 +65,18 @@ export function useLiveWriter(logId: string, active: boolean, initialText: strin
     inflight.current = run;
     await run;
     inflight.current = null;
-    if (activeRef.current && socket.connected && latest.current !== sent.current) {
-      timer.current = setTimeout(() => void flush(), FLUSH_INTERVAL_MS);
+    // Typed while the op was in flight: send the rest. The timer must clear itself, or `push`
+    // would see a stale id forever, think a flush is queued, and the stream would stop.
+    if (
+      activeRef.current &&
+      socket.connected &&
+      latest.current !== sent.current &&
+      !timer.current
+    ) {
+      timer.current = setTimeout(() => {
+        timer.current = null;
+        void flush();
+      }, FLUSH_INTERVAL_MS);
     }
   }, [logId]);
 
@@ -121,6 +131,7 @@ export function useLiveWriter(logId: string, active: boolean, initialText: strin
     return () => {
       disposed = true;
       if (timer.current) clearTimeout(timer.current);
+      timer.current = null;
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
       socket.off('presence', onPresence);
